@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include "models.h" //Models Class
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -202,13 +203,16 @@ int main()
         1, 2, 3    // second triangle
     };
 
+    //Creating a model object
+    Model cube("../model/cube.obj");
+
     //Creating an array of VBOs and VAOs because there are two triangles
-    unsigned int VBO[2];
-    unsigned int VAO[2];
-    unsigned int EBO[2];
-    glGenBuffers(2, VBO);
-    glGenVertexArrays(2, VAO);
-    glGenBuffers(2, EBO);
+    unsigned int VBO[3];
+    unsigned int VAO[3];
+    unsigned int EBO[3];
+    glGenBuffers(3, VBO);
+    glGenVertexArrays(3, VAO);
+    glGenBuffers(3, EBO);
 
 
 
@@ -243,6 +247,19 @@ int main()
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    glBindVertexArray(0);
+
+    //Working with Cube
+    glBindVertexArray(VAO[2]);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube.vertices), cube.vertices, GL_STATIC_DRAW);
+    //Bind EBOs
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[2]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube.indices), cube.indices, GL_STATIC_DRAW);
+    //Position Attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     glBindBuffer(GL_ARRAY_BUFFER, 0); 
@@ -268,11 +285,14 @@ int main()
         //glBindVertexArray(VAO[0]); 
         //glDrawArrays(GL_TRIANGLES, 0, numVertices);
 
-        glUseProgram(shaderProgram[1]);
-        glBindVertexArray(VAO[0]); 
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glUseProgram(shaderProgram[0]);
+        //glBindVertexArray(VAO[0]); 
+		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+//
+        //glBindVertexArray(VAO[1]); 
+		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        glBindVertexArray(VAO[1]); 
+        glBindVertexArray(VAO[2]); 
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
         //glBindVertexArray(0);
@@ -290,8 +310,8 @@ int main()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, VAO);
-    glDeleteBuffers(1, VBO);
+    glDeleteVertexArrays(3, VAO);
+    glDeleteBuffers(3, VBO);
     glDeleteProgram(shaderProgram[0]);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
