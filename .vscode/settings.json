@@ -69,7 +69,9 @@
         "sstream": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp"
     },
     "cmake.configureOnOpen": false
 }

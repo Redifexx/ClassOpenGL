@@ -203,8 +203,35 @@ int main()
         1, 2, 3    // second triangle
     };
 
+    float testCube[] = {
+        -1.0f,  -1.0f, 1.0f, 
+        -1.0f,  1.0f, 1.0f,  
+        -1.0f,  -1.0f, -1.0f, 
+        -1.0f,  1.0f, -1.0f, 
+        1.0f,  -1.0f, 1.0f, 
+        1.0f,  1.0f, 1.0f, 
+        1.0f,  -1.0f, -1.0f, 
+        1.0f,  1.0f, -1.0f, 
+    };
+
+    unsigned int testCubeInd[] = {  // note that we start from 0!
+        2, 3, 1, 
+        4, 7, 3,
+        8, 5, 7,
+        6, 1, 5,
+        7, 1, 3, 
+        4, 6, 8, 
+        2, 4, 3, 
+        4, 8, 7, 
+        8, 6, 5, 
+        6, 2, 1, 
+        7, 5, 1, 
+        4, 2, 6
+    };
+
+    char modelFile[] = "../model/cube.obj";
     //Creating a model object
-    Model cube("../model/cube.obj");
+    Model cube(modelFile);
 
     //Creating an array of VBOs and VAOs because there are two triangles
     unsigned int VBO[3];
@@ -218,47 +245,47 @@ int main()
 
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
     //Working with Triangles
-    glBindVertexArray(VAO[0]);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
-    //Bind EBOs
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[0]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triIndices), triIndices, GL_STATIC_DRAW);
-    //Position Attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    //Color Attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
-
-    //Working with Rectangle
-    glBindVertexArray(VAO[1]);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(rectangle), rectangle, GL_STATIC_DRAW);
-    //Bind EBOs
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[1]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(rectIndices), rectIndices, GL_STATIC_DRAW);
-    //Position Attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    //Color Attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindVertexArray(0);
+    //glBindVertexArray(VAO[0]);
+    //glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(triangles), triangles, GL_STATIC_DRAW);
+    ////Bind EBOs
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[0]);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(triIndices), triIndices, GL_STATIC_DRAW);
+    ////Position Attribute
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(0);
+    ////Color Attribute
+    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    //glEnableVertexAttribArray(1);
+//
+    //glBindVertexArray(0);
+//
+    ////Working with Rectangle
+    //glBindVertexArray(VAO[1]);
+    //glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(rectangle), rectangle, GL_STATIC_DRAW);
+    ////Bind EBOs
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[1]);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(rectIndices), rectIndices, GL_STATIC_DRAW);
+    ////Position Attribute
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(0);
+    ////Color Attribute
+    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    //glEnableVertexAttribArray(1);
+//
+    //glBindVertexArray(0);
 
     //Working with Cube
-    glBindVertexArray(VAO[2]);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(cube.vertices), cube.vertices, GL_STATIC_DRAW);
-    //Bind EBOs
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[2]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube.indices), cube.indices, GL_STATIC_DRAW);
-    //Position Attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    //glBindVertexArray(VAO[0]);
+    //glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(cube.vertices), cube.vertices, GL_STATIC_DRAW);
+    ////Bind EBOs
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[0]);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube.indices), cube.indices, GL_STATIC_DRAW);
+    ////Position Attribute
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(0);
 
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
@@ -286,9 +313,8 @@ int main()
 //
         //glBindVertexArray(VAO[1]); 
 		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        glUseProgram(shaderProgram[0]);
-        glBindVertexArray(VAO[2]); 
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+       // glUseProgram(shaderProgram[0]);
+        cube.Draw();
 
         //glBindVertexArray(0);
  

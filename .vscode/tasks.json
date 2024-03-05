@@ -12,6 +12,7 @@
                 "-lglfw3dll",
                 "-lopengl32",
                 "-lgdi32",
+                "-lassimp",
                 "-o",
                 "${workspaceFolder}\\bin\\main.exe"
             ],
