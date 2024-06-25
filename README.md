@@ -1,4 +1,4 @@
-# OpenGL - Viewing Transforms and Shading
+# RGL - My OpenGL Engine
 
 
 
