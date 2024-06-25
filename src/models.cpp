@@ -1,221 +1,400 @@
 #include "models.h"
 
-void Model::Draw()
+Model::Model(string path, Shader* shader)
 {
-    for(unsigned int i = 0; i < meshes.size(); i++)
-        meshes[i].Draw();
-}  
-
-void Model::loadModel(string path)
-{
-    Assimp::Importer import;
-    const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);	
-	
-    if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
-    {
-        cout << "ERROR::ASSIMP::" << import.GetErrorString() << endl;
-        return;
-    }
-    directory = path.substr(0, path.find_last_of('/'));
-
-    processNode(scene->mRootNode, scene);
-}  
-
-void Model::processNode(aiNode *node, const aiScene *scene)
-{
-    // process all the node's meshes (if any)
-    for(unsigned int i = 0; i < node->mNumMeshes; i++)
-    {
-        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]]; 
-        meshes.push_back(processMesh(mesh, scene));			
-    }
-    // then do the same for each of its children
-    for(unsigned int i = 0; i < node->mNumChildren; i++)
-    {
-        processNode(node->mChildren[i], scene);
-    }
-}  
-
-Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene)
-{
-    // data to fill
-    vector<Vertex> vertices;
-    vector<unsigned int> indices;
-    vector<Texture> textures;
-
-    // walk through each of the mesh's vertices
-    for(unsigned int i = 0; i < mesh->mNumVertices; i++)
-    {
-        Vertex vertex;
-        glm::vec3 vector; // we declare a placeholder vector since assimp uses its own vector class that doesn't directly convert to glm's vec3 class so we transfer the data to this placeholder glm::vec3 first.
-        // positions
-        vector.x = mesh->mVertices[i].x;
-        vector.y = mesh->mVertices[i].y;
-        vector.z = mesh->mVertices[i].z;
-        vertex.Position = vector;
-        // normals
-        if (mesh->HasNormals())
-        {
-            vector.x = mesh->mNormals[i].x;
-            vector.y = mesh->mNormals[i].y;
-            vector.z = mesh->mNormals[i].z;
-            vertex.Normal = vector;
-        }
-        // texture coordinates
-        if(mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
-        {
-            glm::vec2 vec;
-            // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
-            // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
-            vec.x = mesh->mTextureCoords[0][i].x; 
-            vec.y = mesh->mTextureCoords[0][i].y;
-            vertex.TexCoords = vec;
-            // tangent
-            vector.x = mesh->mTangents[i].x;
-            vector.y = mesh->mTangents[i].y;
-            vector.z = mesh->mTangents[i].z;
-            vertex.Tangent = vector;
-            // bitangent
-            vector.x = mesh->mBitangents[i].x;
-            vector.y = mesh->mBitangents[i].y;
-            vector.z = mesh->mBitangents[i].z;
-            vertex.Bitangent = vector;
-        }
-        else
-            vertex.TexCoords = glm::vec2(0.0f, 0.0f);
-
-        vertices.push_back(vertex);
-    }
-    // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
-    for(unsigned int i = 0; i < mesh->mNumFaces; i++)
-    {
-        aiFace face = mesh->mFaces[i];
-        // retrieve all indices of the face and store them in the indices vector
-        for(unsigned int j = 0; j < face.mNumIndices; j++)
-            indices.push_back(face.mIndices[j]);        
-    }
-    // process materials
-    aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];    
-    // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
-    // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
-    // Same applies to other texture as the following list summarizes:
-    // diffuse: texture_diffuseN
-    // specular: texture_specularN
-    // normal: texture_normalN
-
-    // 1. diffuse maps
-    vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-    textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-    // 2. specular maps
-    vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-    textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-    // 3. normal maps
-    std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
-    textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-    // 4. height maps
-    std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
-    textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
-    
-    // return a mesh object created from the extracted mesh data
-    return Mesh(vertices, indices, textures);
+    //cout << "Adding Mesh!" << endl;
+    addMesh(path);
+    modelPos = glm::vec3(0.0f, 0.0f, 0.0f);
+    modelScale = glm::vec3(1.0f, 1.0f, 1.0f);
+    modelRot = glm::vec3(0.0f, 0.0f, 0.0f);
+    this->nearClip = 0.0f;
+    this->farClip = 0.0f;
+    this->isFlat = false;
+    this->isOrtho = false;
+    //cout << "Shader Activate!" << endl;
+    shader->Activate();
+    //cout << "Model Matrix!" << endl;
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(this->modelMatrix));
+    //cout << "World Matrix!" << endl;
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "worldMatrix"), 1, GL_FALSE, glm::value_ptr(this->worldMatrix));
+    curShader = shader;
+    this->moveModel(glm::vec3(0.0f, 0.0f, -5.0f));
+    //cout << "Model Contstructed!" << endl;
 }
 
-vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName)
+Model::~Model()
 {
-    vector<Texture> textures;
-    for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
+    for (int i = 0; i < meshes.size(); i++)
     {
-        aiString str;
-        mat->GetTexture(type, i, &str);
-        bool skip = false;
-        for(unsigned int j = 0; j < textures_loaded.size(); j++)
+        delete meshes[i];
+    }
+}
+
+void Model::addMesh(string path)
+{
+    //cout << "Creating new Mesh!" << endl;
+    Mesh* curMesh = new Mesh(path);
+    //cout << "Pushing Back Mesh!" << endl;
+    meshes.push_back(curMesh);
+}
+
+void Model::Draw(GLFWwindow* window)
+{
+    curShader->Activate();
+    glUniformMatrix4fv(glGetUniformLocation(curShader->ID, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(this->modelMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(curShader->ID, "worldMatrix"), 1, GL_FALSE, glm::value_ptr(this->worldMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(curShader->ID, "projection"), 1, GL_FALSE, glm::value_ptr(this->projectionMatrix));
+    GLint nearClipLoc = glGetUniformLocation(curShader->ID, "nearClip");
+    GLint farClipLoc = glGetUniformLocation(curShader->ID, "farClip");
+    GLint isOrthoLoc = glGetUniformLocation(curShader->ID, "isOrtho");
+    if (nearClipLoc != -1)
+    {
+        glUniform1f(nearClipLoc, this->nearClip);
+        //cout << "SETTING NEAR CLIP" << endl;
+    }
+    if (farClipLoc != -1)
+    {
+        glUniform1f(farClipLoc, this->farClip);
+        //cout << "SETTING FAR CLIP" << endl;
+    }
+    if (isOrthoLoc != -1)
+    {
+        glUniform1i(isOrthoLoc, this->isOrtho);
+    }
+    getInput(window);
+    for (Mesh* curMesh : meshes)
+    {
+        if (localTransformations)
         {
-            if(std::strcmp(textures_loaded[j].path.data(), str.C_Str()) == 0)
-            {
-                textures.push_back(textures_loaded[j]);
-                skip = true; 
-                break;
-            }
+            curMesh->updateVertices();
+            //cout << "LOCAL" << endl;
         }
-        if(!skip)
-        {   // if texture hasn't been loaded already, load it
-            Texture texture;
-            texture.id = TextureFromFile(str.C_Str(), directory);
-            texture.type = typeName;
-            texture.path = str.C_Str();
-            textures.push_back(texture);
-            textures_loaded.push_back(texture); // add to loaded textures
+        curMesh->Draw();
+    }
+}
+
+void Model::enableCPUCalc()
+{
+    localTransformations = true;
+    for (Mesh* curMesh : meshes)
+    {
+        for (Vertex& vertex : curMesh->vertices)
+        {
+            Vertex curVert;
+            curVert.Position = vertex.Position;
+            curVert.Normal = vertex.Normal;
+            curVert.TexCoords = vertex.TexCoords;
+            curMesh->originalVertices.push_back(curVert);
         }
     }
-    return textures;
-}  
+}
 
-//Model::Model(std::string fileDirectory)
-//{
-//    loadOBJ(fileDirectory);
-//}
-//
-//Model::~Model()
-//{
-//    delete vertices;
-//    delete indices;
-//}
-//
-//void Model::loadOBJ(std::string fileDirectory)
-//{
-//    std::vector<float> allVerts;
-//    std::vector<int> allInds;
-//    std::ifstream curFile(fileDirectory);
-//    if (!curFile.is_open()) {
-//        std::cerr << "Error opening the file!" << std::endl;
-//    }
-//    std::string line;
-//    while (std::getline(curFile, line)) {
-//        //std::cout << line << std::endl;
-//        char firstChar = line[0];
-//        std::istringstream iss(line);
-//        std::string cur;
-//        if (firstChar == 'v')
-//        {  
-//            std::cout << line << std::endl;
-//            while (iss >> cur)
-//            {
-//                if (cur != "v")
-//                {
-//                    allVerts.push_back(std::stof(cur));
-//                    std::cout << "CurVert: " << std::stof(cur) << std::endl;
-//                }
-//            }
-//        }
-//        else if (firstChar == 'f')
-//        {
-//            while (iss >> cur)
-//            {
-//                if (cur != "f")
-//                {
-//                    allInds.push_back(std::stof(cur));
-//                    std::cout << "CurInd: " << std::stof(cur) << std::endl;
-//                }
-//            }
-//        }
-//    }
-//
-//    curFile.close();
-//
-//    //Making this an array
-//    this->vertices = new float[allVerts.size()];
-//    this->indices = new unsigned int[allInds.size()];
-//
-//    for (int i = 0; i < allVerts.size(); i++)
-//    {
-//        vertices[i] = allVerts[i];
-//        //std::cout << "Vertex #" << i << " " << vertices[i] << std::endl;
-//    }
-//
-//    for (int i = 0; i < allInds.size(); i++)
-//    {
-//        indices[i] = allInds[i];
-//        //std::cout << "Index #" << i << " " << indices[i] << std::endl;
-//    }
-//}
+void Model::applyMatrixLocally()
+{
+    //cout << modelRot.x << " " << modelRot.y << " " << modelRot.z << endl;
+    for (Mesh* curMesh : meshes)
+    {
+        int pos = 0;
+        vector<Vertex> newVert;
+        for (Vertex& vertex : curMesh->vertices)
+        {
+            Vertex curVert;
+            curVert.Position = worldMatrix * modelMatrix * glm::vec4(curMesh->originalVertices[pos].Position, 1.0f);
+            glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(worldMatrix * modelMatrix)));
+            curVert.Normal = glm::normalize(normalMatrix * curMesh->originalVertices[pos].Normal);
+            //cout << "NORMAL " << curVert.Normal.x << " " << curVert.Normal.y << " " << curVert.Normal.z << endl;
+            curVert.TexCoords = curMesh->originalVertices[pos].TexCoords;
+            newVert.push_back(curVert);
+            pos++;
+        }
+        curMesh->vertices = newVert;
+    }
+    //modelMatrix = glm::mat4(1.0f);
+    //projectionMatrix = glm::mat4(1.0f);
+}
 
+void Model::getInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(0.0f, 0.005f, 0.0f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(0.0f, 0.005f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(0.0f, -0.005f, 0.0f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(0.0f, -0.005f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(-0.005f, 0.0f, 0.0f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(-0.005f, 0.0f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(0.005f, 0.0f, 0.0f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(0.005f, 0.0f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(0.0f, 0.0f, 0.05f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(0.0f, 0.0f, 0.05f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->moveModelLocal(glm::vec3(0.0f, 0.0f, -0.05f));
+        }
+        else
+        {
+            this->moveModel(glm::vec3(0.0f, 0.0f, -0.05f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->scaleModelLocal(glm::vec3(1.01f, 1.01f, 1.01f));
+        }
+        else
+        {
+            this->scaleModel(glm::vec3(1.01f, 1.01f, 1.01f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->scaleModelLocal(glm::vec3(0.99f, 0.99f, 0.99f));
+        }
+        else
+        {
+            this->scaleModel(glm::vec3(0.99f, 0.99f, 0.99f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+    {
+        this->resetModel();
+    }
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(0.0f, 1.f, 0.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(0.0f, 1.f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(0.0f, -1.f, 0.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(0.0f, -1.f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(1.f, 0.0f, 0.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(1.f, 0.0f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(-1.f, 0.0f, 0.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(-1.f, 0.0f, 0.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(0.f, 0.0f, -1.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(0.f, 0.0f, -1.0f));
+        }
+    }
+    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+    {
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        {
+            this->rotateModelLocal(glm::vec3(0.f, 0.0f, 1.0f));
+        }
+        else
+        {
+            this->rotateModel(glm::vec3(0.f, 0.0f, 1.0f));
+        }
+    }
+}
+
+void Model::moveModelLocal(glm::vec3 position)
+{
+    modelPosLocal += position;
+    modelMatrix = glm::translate(modelMatrix, position);
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::moveModel(glm::vec3 position)
+{
+    modelPos += position;
+    glm::vec3 curPos = worldMatrix[3];
+    glm::vec3 newPos = curPos + position;
+    worldMatrix[3] = glm::vec4(newPos, 1.0f);
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::scaleModelLocal(glm::vec3 scalar)
+{
+    modelScaleLocal *= scalar;
+    modelMatrix = glm::scale(modelMatrix, scalar);
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::scaleModel(glm::vec3 scalar)
+{
+    modelScale *= scalar;
+    cout << modelScale.x << " " << modelScale.y << " " << modelScale.z << endl;
+    worldMatrix = glm::scale(worldMatrix, scalar);
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::rotateModelLocal(glm::vec3 rotation)
+{
+    modelRotLocal += rotation;
+    float angleX = rotation.x;
+    float angleY = rotation.y;
+    float angleZ = rotation.z;
+
+    glm::mat4 rotMatrix = glm::mat4(1.0f);
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleX), glm::vec3(1.0f, 0.0f, 0.0f));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleY), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleZ), glm::vec3(0.0f, 0.0f, 1.0f));
+    modelMatrix *= rotMatrix;
+
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::rotateModel(glm::vec3 rotation)
+{
+    modelRot += rotation;
+    float angleX = rotation.x;
+    float angleY = rotation.y;
+    float angleZ = rotation.z;
+
+    glm::mat4 rotMatrix = glm::mat4(1.0f);
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleX), glm::vec3(1.0f, 0.0f, 0.0f));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleY), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotMatrix = glm::rotate(rotMatrix, glm::radians(angleZ), glm::vec3(0.0f, 0.0f, 1.0f));
+    worldMatrix *= rotMatrix;
+    if (localTransformations)
+    {
+        applyMatrixLocally();
+    }
+}
+
+void Model::resetModel()
+{
+    //if (!localTransformations)
+    //{
+    //    modelMatrix = glm::translate(modelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+    //    glm::mat4 rotMatrix = glm::mat4(1.0f);
+    //    rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    //    rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    //    rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    //    modelMatrix *= rotMatrix;
+    //    modelMatrix = glm::scale(modelMatrix, modelScale / modelScale);
+    //}
+    moveModel(-modelPos);
+    //rotateModel(glm::vec3(-modelRot.x, 0.0f, 0.0f));
+    //rotateModel(glm::vec3(0.0f, -modelRot.y, 0.0f));
+    //rotateModel(glm::vec3(0.0f, 0.0f, -modelRot.z));
+    //modelRot = glm::vec3(0.0f);
+    //glm::mat4 rotMatrix = glm::mat4(1.0f);
+    //rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    //rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+    //rotMatrix = glm::rotate(rotMatrix, glm::radians(-modelRot.x), glm::vec3(1.0f, 0.0f, 0.0f));
+    //modelRot = glm::vec3(0.0f);
+    //worldMatrix *= rotMatrix;
+    scaleModel(1.0f / modelScale);
+    moveModel(glm::vec3(0.0f, 0.0f, -5.0f));
+}
+
+glm::vec3 Model::getScale(glm::mat4 matrix)
+{
+    glm::vec3 scale;
+    scale.x = glm::length(glm::vec3(matrix[0]));
+    scale.y = glm::length(glm::vec3(matrix[1]));
+    scale.z = glm::length(glm::vec3(matrix[2]));
+    return scale;
+}
+
+void Model::updateShader(Shader* shader)
+{
+    shader->Activate();
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(this->modelMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(shader->ID, "worldMatrix"), 1, GL_FALSE, glm::value_ptr(this->worldMatrix));
+    curShader = shader;
+}
