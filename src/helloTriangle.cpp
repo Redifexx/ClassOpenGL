@@ -81,7 +81,7 @@ int main()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("../fonts/ATTFShinGoProBold.ttf", 13.0f);
+    io.Fonts->AddFontFromFileTTF("../fonts/F25_Bank_Printer.ttf", 13.0f);
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
